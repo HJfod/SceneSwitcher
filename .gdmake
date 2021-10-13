@@ -1,9 +1,9 @@
 {
-  "ProjectName": "GDAltTab",
+  "ProjectName": "SceneSwitcher",
   "GithubRepo": null,
   "EntryPoint": null,
   "Version": "v1.0",
-  "ConsoleEnabled": true,
+  "ConsoleEnabled": false,
   "Compiler": 0,
   "Platform": 0,
   "Submodules": [

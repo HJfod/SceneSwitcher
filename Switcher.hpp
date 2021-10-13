@@ -8,7 +8,13 @@ enum SwitchTo {
     kSwitchToOfficialLevels,
     kSwitchToMyLevels,
     kSwitchToOnlineLevels,
+    kSwitchToSearch,
+    kSwitchToLast,
+    kSwitchToLastLevel,
 };
+constexpr const char* SwitchToToString(SwitchTo to);
+
+void setLastViewedLevel(GJGameLevel*, bool);
 
 class Switch : public CCNode {
     protected:

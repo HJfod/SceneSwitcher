@@ -34,6 +34,10 @@ static bool nodeIsHovered(CCNode* node, CCPoint const& gpos) {
     return rect.containsPoint(gpos);
 }
 
+static bool operator!=(CCPoint const& p1, CCPoint const& p2) {
+    return p1.x != p2.x || p1.y != p2.y;
+}
+
 static void limitNodeSize(CCNode* spr, CCSize const& size, float def, float min) {
     spr->setScale(1.f);
     auto [cwidth, cheight] = spr->getContentSize();

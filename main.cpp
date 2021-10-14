@@ -3,15 +3,24 @@
 
 GDMAKE_HOOK(0x175b20)
 void __fastcall LevelInfoLayer_desctructor(LevelInfoLayer* self) {
-    setLastViewedLevel(self->m_pLevel, false);
-
+    setLastViewedLevel(self->m_pLevel, kLastLevelTypePlay);
     return GDMAKE_ORIG_V(self);
 }
 
 GDMAKE_HOOK(0x6f370)
 void __fastcall EditLevelLayer_desctructor(EditLevelLayer* self) {
-    setLastViewedLevel(self->m_pLevel, true);
+    setLastViewedLevel(self->m_pLevel, kLastLevelTypeEditor);
+    return GDMAKE_ORIG_V(self);
+}
 
+GDMAKE_HOOK(0x185460)
+void __fastcall LevelSelectLayer_desctructor(LevelSelectLayer* self) {
+    setLastViewedLevel(
+        GameLevelManager::sharedState()->getMainLevel(
+            self->m_pScrollLayer->m_nPage, true
+        ),
+        kLastLevelTypeMain
+    );
     return GDMAKE_ORIG_V(self);
 }
 
@@ -29,6 +38,9 @@ void __fastcall CCKeyboardDispatcher_dispatchKeyboardMSG(
             Switcher::goTo();
         }
         return;
+    } else {
+        if (down && Switcher::handleKey(key))
+            return;
     }
 
     return GDMAKE_ORIG_V(self, edx, key, down);

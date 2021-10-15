@@ -71,6 +71,7 @@ class Switcher : public CCLayerColor {
         void go();
         static constexpr bool isPopupSwitchType(SwitchTo);
 
+        void snap();
         bool handle(enumKeyCodes);
 
         virtual ~Switcher();

@@ -127,8 +127,8 @@ enumKeyCodes stringToKey(std::string const& s) {
 }
 
 CCScene* createTransitionFromArbitaryMagicNumber(CCScene* scene, int num) {
-    #define ARBITARY_SCENE(trans) case __LINE__ - 121: return trans::create(g_fTransitionSpeed, scene)
-    #define ARBITARY_SCEN3(trans, b) case __LINE__ - 121: return trans::create(g_fTransitionSpeed, scene, b)
+    #define ARBITARY_SCENE(trans) case __LINE__ - 134: return trans::create(g_fTransitionSpeed, scene)
+    #define ARBITARY_SCEN3(trans, b) case __LINE__ - 134: return trans::create(g_fTransitionSpeed, scene, b)
 
     switch (num) {
         case 0: return scene;
@@ -304,7 +304,7 @@ bool Switcher::loadConfigVars(std::string const& line) {
                         ret = true;
                     } break;
 
-                    case hash("anim"): case hash("animation"): {
+                    case hash("anim"): case hash("animation"): case hash("hover"): {
                         g_bAnimate = std::stoi(val);
                         ret = true;
                     } break;
@@ -337,7 +337,7 @@ bool Switcher::loadConfigVars(std::string const& line) {
                             try {
                                 auto x = std::stof(val.substr(0, val.find_first_of(":")));
                                 auto y = std::stof(val.substr(val.find_first_of(":") + 1));
-                                Switcher::s_obItemSize = CCSize { x, y };
+                                Switcher::s_obItemSeparation = CCSize { x, y };
                                 ret = true;
                             } catch (...) {}
                         }
@@ -380,7 +380,7 @@ decltype(Switcher::m_vConfig) Switcher::loadConfigFile() {
                     );
                     RES(
                         kSwitchToMyLevels,
-                        "mylevels"
+                        "mylevels", "create", "locallevels"
                     );
                     RES(
                         kSwitchToFeatured,
@@ -440,7 +440,7 @@ decltype(Switcher::m_vConfig) Switcher::loadConfigFile() {
                     );
                     RES(
                         kSwitchToMoreOptions,
-                        "options", "moreoptions", "optionspopup"
+                        "options", "moreoptions", "optionspopup", "moreoptionslayer"
                     );
                     RES(
                         kSwitchToProfile,
@@ -452,11 +452,11 @@ decltype(Switcher::m_vConfig) Switcher::loadConfigFile() {
                     );
                     RES(
                         kSwitchToWeekly,
-                        "weekly", "weeklylevel", "weeklylevelpage"
+                        "weekly", "weeklylevel", "weeklydemon"
                     );
                     RES(
                         kSwitchToQuests,
-                        "quests", "challenges"
+                        "quests", "challenges", "challengespage"
                     );
                 }
             }
@@ -582,67 +582,65 @@ void Switcher::visit() {
     CCLayer::visit();
 }
 
-bool snapHighlight() {
-    bool ret = false;
-
+void Switcher::snap() {
     auto winSize = CCDirector::sharedDirector()->getWinSize();
+    Switch* nearest = nullptr;
+    float dis = 0.f;
+    CCRect borders = {
+        winSize.width / 2,
+        winSize.height / 2,
+        .0f, .0f
+    };
+    for (auto const& item : this->m_vSwitches) {
+        auto idis = ccpDistance(
+            item->getPosition() + s_obItemSize / 2,
+            g_obHighlightPos
+        );
 
-    if (winSize.width / 2 - 190.f > g_obHighlightPos.x) {
-        g_obHighlightPos.x = winSize.width / 2 - 150.f;
-        ret = true;
-    }
-    if (winSize.width / 2 + 190.f < g_obHighlightPos.x) {
-        g_obHighlightPos.x = winSize.width / 2 + 150.f;
-        ret = true;
-    }
-    if (winSize.height / 2 - 140.f > g_obHighlightPos.y) {
-        g_obHighlightPos.y = winSize.height / 2 - 100.f;
-        ret = true;
-    }
-    if (winSize.height / 2 + 140.f < g_obHighlightPos.y) {
-        g_obHighlightPos.y = winSize.height / 2 + 100.f;
-        ret = true;
-    }
+        if (item->getPositionX() < borders.origin.x)
+            borders.origin.x = item->getPositionX();
+        if (item->getPositionX() > borders.origin.x + borders.size.width)
+            borders.size.width = item->getPositionX() - borders.origin.x;
+        if (item->getPositionY() < borders.origin.y)
+            borders.origin.y = item->getPositionY();
+        if (item->getPositionY() > borders.origin.y + borders.size.height)
+            borders.size.height = item->getPositionY() - borders.origin.y;
 
-    g_obHighlightPos.x = roundf(g_obHighlightPos.x / 100.f) * 100.f - 50.f;
-    g_obHighlightPos.y = roundf(g_obHighlightPos.y / 100.f) * 100.f - 50.f;
+        if (!nearest || dis > idis) {
+            nearest = item;
+            dis = idis;
+        }
+    }
+    if (nearest) {
+        bool flip = !borders.containsPoint(g_obHighlightPos);
+        g_obHighlightPos = nearest->getPosition() + s_obItemSize / 2;
+        if (flip) {
 
-    return ret;
+        }
+    }
 }
 
 bool Switcher::handle(enumKeyCodes key) {
     auto winSize = CCDirector::sharedDirector()->getWinSize();
     switch (key) {
         case KEY_Left:
-            if (!snapHighlight()) {
-                g_obHighlightPos.x -= 100.f;
-                if (winSize.width / 2 - 190.f > g_obHighlightPos.x)
-                    g_obHighlightPos.x += 400.f;
-            }
+            g_obHighlightPos.x -= s_obItemSeparation.width;
+            this->snap();
             return true;
         
         case KEY_Right:
-            if (!snapHighlight()) {
-                g_obHighlightPos.x += 100.f;
-                if (winSize.width / 2 + 190.f < g_obHighlightPos.x)
-                    g_obHighlightPos.x -= 400.f;
-            }
+            g_obHighlightPos.x += s_obItemSeparation.width;
+            this->snap();
             return true;
         
         case KEY_Up:
-            if (!snapHighlight()) {
-                g_obHighlightPos.y += 100.f;
-                if (winSize.height / 2 + 140.f < g_obHighlightPos.y)
-                    g_obHighlightPos.y -= 300.f;
-            }
+            g_obHighlightPos.y += s_obItemSeparation.height;
+            this->snap();
             return true;
         
         case KEY_Down:
-            if (!snapHighlight()) {
-                g_obHighlightPos.y -= 100.f;
-                if (winSize.height / 2 - 140.f > g_obHighlightPos.y)
-                    g_obHighlightPos.y += 300.f;
-            }
+            g_obHighlightPos.y -= s_obItemSeparation.height;
+            this->snap();
             return true;
     }
 
@@ -695,13 +693,15 @@ void Switcher::go() {
                     page->show();
                 } break;
 
-                case kSwitchToSettings:
+                case kSwitchToSettings: {
                     OptionsLayer::addToCurrentScene(true);
-                    break;
+                } break;
 
-                case kSwitchToMoreOptions:
-                    MoreOptionsLayer::create()->show();
-                    break;
+                case kSwitchToMoreOptions: {
+                    auto l = MoreOptionsLayer::create();
+                    l->m_bNoElasticity = true;
+                    l->show();
+                } break;
 
                 case kSwitchToDaily: {
                     auto page = DailyLevelPage::create(false);
@@ -716,7 +716,7 @@ void Switcher::go() {
                 } break;
 
                 case kSwitchToQuests: {
-                    auto page = DailyLevelPage::create(true);
+                    auto page = ChallengesPage::create();
                     page->m_bNoElasticity = true;
                     page->show();
                 } break;
@@ -741,6 +741,22 @@ void Switcher::go() {
                     
                 case kSwitchToMyLevels:
                     scene->addChild(LevelBrowserLayer::create(GJSearchObject::create(kGJSearchTypeMyLevels)));
+                    break;
+                    
+                case kSwitchToHallOfFame:
+                    scene->addChild(LevelBrowserLayer::create(GJSearchObject::create(kGJSearchTypeHallOfFame)));
+                    break;
+                    
+                case kSwitchToFeatured:
+                    scene->addChild(LevelBrowserLayer::create(GJSearchObject::create(kGJSearchTypeFeatured)));
+                    break;
+                    
+                case kSwitchToLeaderboards:
+                    scene->addChild(LeaderboardsLayer::create(kLeaderboardStateTop100));
+                    break;
+                    
+                case kSwitchToGauntlets:
+                    scene->addChild(GauntletSelectLayer::create());
                     break;
                     
                 case kSwitchToSavedLevels:

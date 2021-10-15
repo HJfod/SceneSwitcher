@@ -31,7 +31,10 @@ void __fastcall CCKeyboardDispatcher_dispatchKeyboardMSG(
     enumKeyCodes key,
     bool down
 ) {
-    if (key == switchKey()) {
+    if (
+        !CCDirector::sharedDirector()->getIsTransitioning() &&
+        key == switchKey()
+    ) {
         if (down) {
             Switcher::show();
         } else {

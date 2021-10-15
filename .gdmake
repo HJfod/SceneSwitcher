@@ -3,7 +3,7 @@
   "GithubRepo": null,
   "EntryPoint": null,
   "Version": "v1.1",
-  "ConsoleEnabled": true,
+  "ConsoleEnabled": false,
   "Compiler": 0,
   "Platform": 0,
   "Submodules": [

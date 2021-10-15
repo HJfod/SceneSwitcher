@@ -59,3 +59,44 @@ static void limitNodeSize(CCNode* spr, CCSize const& size, float def, float min)
     spr->setScale(scale);
 }
 
+static std::vector<std::string> stringSplit(std::string const& orig, std::string const& split) {
+    std::vector<std::string> res;
+
+    if (orig.size()) {
+        auto s = orig;
+
+        size_t pos = 0;
+
+        while ((pos = s.find(split)) != std::string::npos) {
+            res.push_back(s.substr(0, pos));
+            s.erase(0, pos + split.length());
+        }
+
+        res.push_back(s);
+    }
+
+    return res;
+}
+
+static std::string stringToLower(std::string const& orig) {
+    auto res = orig;
+    std::transform(res.begin(), res.end(), res.begin(), [](unsigned char c){ return std::tolower(c); });
+    return res;
+}
+
+static std::string stringReplace(std::string const& orig, std::string const& subs, std::string const& reps) {
+    std::string::size_type n = 0;
+    std::string res = orig;
+
+    while ( ( n = res.find( subs, n ) ) != std::string::npos ) {
+        res.replace( n, subs.size(), reps );
+        n += reps.size();
+    }
+
+    return res;
+}
+
+static bool stringContains(std::string const& orig, std::string const& subs) {
+    return orig.find(subs) != std::string::npos;
+}
+

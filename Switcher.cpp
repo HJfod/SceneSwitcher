@@ -1,9 +1,26 @@
 #include "Switcher.hpp"
 
+// jaesus
+
 SwitchTo g_eLastSwitch = kSwitchToMainMenu;
 SwitchTo g_eCurrentScene = kSwitchToMainMenu;
 GJGameLevel* g_pLastLevel = nullptr;
 LastLevelType g_eLastLevelWasEdit = kLastLevelTypeMain;
+enumKeyCodes g_eKey = KEY_CapsLock;
+bool g_bAnimate = false;
+int g_nAnimSpeed = 5;
+bool g_bLoadOnlyAtStartup = false;
+bool g_bHasBeenLoadedOnce = false;
+int g_nArbitaryMagicTransitionNumber = 0;
+float g_fTransitionSpeed = .5f;
+std::vector<std::vector<SwitchTo>> g_vConfig;
+
+CCSize Switcher::s_obItemSeparation = { 90.f, 90.f };
+CCSize Switcher::s_obItemSize = { 80.f, 80.f };
+
+static constexpr const char* g_sConfigFile = "SceneSwitcher.config";
+
+constexpr const int SWITCHER_TAG = 0x517E5;
 
 CCPoint g_obMousePos;
 CCPoint g_obHighlightPos;
@@ -73,8 +90,63 @@ void setLastViewedLevel(GJGameLevel* lvl, LastLevelType b) {
     g_eLastLevelWasEdit = b;
 }
 
+enumKeyCodes switchKey() {
+    return g_eKey;
+}
 
-constexpr const int SWITCHER_TAG = 0x517E5;
+enumKeyCodes stringToKey(std::string const& s) {
+    auto key = stringToLower(s);
+    switch (hash(key.c_str())) {
+        case hash("tab"):                           return KEY_Tab;
+        case hash("caps"): case hash("capslock"):   return KEY_CapsLock;
+        case hash("esc"): case hash("escape"):      return KEY_Escape;
+        case hash("alt"):                           return KEY_Alt;
+        case hash("shift"):                         return KEY_Shift;
+        case hash("control"): case hash("ctrl"):    return KEY_Control;
+        case hash("space"):                         return KEY_Space;
+        case hash("enter"):                         return KEY_Enter;
+    }
+    try {
+        auto k = std::stoi(key);
+        return static_cast<enumKeyCodes>(k);
+    } catch (...) {}
+    return KEY_CapsLock;
+}
+
+CCScene* createTransitionFromArbitaryMagicNumber(CCScene* scene, int num) {
+    #define ARBITARY_SCENE(trans) case __LINE__ - 121: return trans::create(g_fTransitionSpeed, scene)
+    #define ARBITARY_SCEN3(trans, b) case __LINE__ - 121: return trans::create(g_fTransitionSpeed, scene, b)
+
+    switch (num) {
+        case 0: return scene;
+        ARBITARY_SCENE(CCTransitionFade);           // 1
+        ARBITARY_SCENE(CCTransitionCrossFade);
+        ARBITARY_SCENE(CCTransitionFadeBL);
+        ARBITARY_SCENE(CCTransitionFadeTR);
+        ARBITARY_SCEN3(CCTransitionPageTurn, true); // 5
+        ARBITARY_SCEN3(CCTransitionPageTurn, false);
+        ARBITARY_SCENE(CCTransitionRotoZoom);       
+        ARBITARY_SCENE(CCTransitionJumpZoom);
+        ARBITARY_SCENE(CCTransitionMoveInL);        // 10
+        ARBITARY_SCENE(CCTransitionMoveInR);        
+        ARBITARY_SCENE(CCTransitionMoveInT);        
+        ARBITARY_SCENE(CCTransitionMoveInB);
+        ARBITARY_SCENE(CCTransitionSlideInL);       // 15
+        ARBITARY_SCENE(CCTransitionSlideInR);       
+        ARBITARY_SCENE(CCTransitionSlideInT);       
+        ARBITARY_SCENE(CCTransitionSlideInB);
+        ARBITARY_SCENE(CCTransitionShrinkGrow);     // 20
+        ARBITARY_SCENE(CCTransitionFlipX);          
+        ARBITARY_SCENE(CCTransitionFlipY);
+        ARBITARY_SCENE(CCTransitionSplitCols);
+        ARBITARY_SCENE(CCTransitionSplitRows);      // 25
+        ARBITARY_SCENE(CCTransitionFadeUp);         
+        ARBITARY_SCENE(CCTransitionFadeDown);
+    }
+
+    return scene;
+}
+
 
 bool Switch::init(const char* text, const char* sprName, SwitchTo to, float scale) {
     if (!CCNode::init())
@@ -82,7 +154,7 @@ bool Switch::init(const char* text, const char* sprName, SwitchTo to, float scal
     
     this->m_eTo = to;
 
-    this->setContentSize({ 80.f, 80.f });
+    this->setContentSize(Switcher::s_obItemSize);
 
     if (!text) {
         text = SwitchToToString(to);
@@ -114,9 +186,28 @@ bool Switch::init(const char* text, const char* sprName, SwitchTo to, float scal
 
 void Switch::draw() {
     if (this->m_bHovered) {
-        ccGLBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        ccDrawSolidRect({ 0, 0 }, this->getContentSize(), { 1, 1, 1, .2f });
+        if (g_bAnimate) {
+            if (m_nAnim + g_nAnimSpeed < m_nAnimTarget) {
+                m_nAnim += g_nAnimSpeed;
+            } else {
+                m_nAnim = m_nAnimTarget;
+            }
+        } else {
+            m_nAnim = m_nAnimTarget;
+        }
+    } else {
+        if (g_bAnimate) {
+            if (m_nAnim - g_nAnimSpeed > 0) {
+                m_nAnim -= g_nAnimSpeed;
+            } else {
+                m_nAnim = 0;
+            }
+        } else {
+            m_nAnim = 0;
+        }
     }
+    ccGLBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    ccDrawSolidRect({ 0, 0 }, this->getContentSize(), { 1, 1, 1, m_nAnim / 255.f });
 
     CCNode::draw();
 }
@@ -138,7 +229,7 @@ Switch* Switch::create(const char* text, const char* spr, SwitchTo to, CCPoint c
 
     if (ret && ret->init(text, spr, to, scale)) {
         ret->autorelease();
-        auto p = pos + CCDirector::sharedDirector()->getWinSize() / 2 - ret->getScaledContentSize() / 2;
+        auto p = pos + CCDirector::sharedDirector()->getWinSize() / 2;
         ret->setPosition(p);
         t->addChild(ret);
         return ret;
@@ -160,11 +251,269 @@ constexpr bool Switcher::isPopupSwitchType(SwitchTo to) {
     return false;
 }
 
+bool Switcher::loadConfigVars(std::string const& line) {
+    std::vector<std::string> data;
+    if (!line.size()) {
+        if (std::filesystem::exists(g_sConfigFile)) {
+            auto fdata = readFileString(g_sConfigFile);
+            while (stringContains(fdata, " "))
+                fdata = stringReplace(fdata, " ", "");
+            while (stringContains(fdata, "\r"))
+                fdata = stringReplace(fdata, "\r", "");
+            fdata = stringToLower(fdata);
+            
+            data = stringSplit(fdata, "\n");
+        }
+    } else {
+        data = { line };
+    }
+    bool ret = false;
+    for (auto const& line : data) {
+        if (stringContains(line, "=")) {
+            for (auto const& item_r : stringSplit(line, ",")) {
+                auto var = item_r.substr(0, item_r.find_first_of("="));
+                auto val = item_r.substr(item_r.find_first_of("=") + 1);
+                switch (hash(var.c_str())) {
+                    case hash("key"): {
+                        g_eKey = stringToKey(val);
+                        ret = true;
+                    } break;
+
+                    case hash("norefresh"): case hash("noreload"): {
+                        g_bLoadOnlyAtStartup = std::stoi(val);
+                        ret = true;
+                    } break;
+
+                    case hash("animspeed"): case hash("animationspeed"): {
+                        g_nAnimSpeed = std::stoi(val);
+                        ret = true;
+                    } break;
+
+                    case hash("anim"): case hash("animation"): {
+                        g_bAnimate = std::stoi(val);
+                        ret = true;
+                    } break;
+
+                    case hash("transitionspeed"): case hash("transspeed"):
+                    case hash("nottheuk"): {
+                        g_fTransitionSpeed = std::stof(val);
+                        ret = true;
+                    } break;
+
+                    case hash("transition"): case hash("trans"): case hash("nb"): {
+                        g_nArbitaryMagicTransitionNumber = std::stoi(val);
+                        ret = true;
+                    } break;
+
+                    case hash("size"): {
+                        if (stringContains(item_r, ":")) {
+                            try {
+                                auto x = std::stof(val.substr(0, val.find_first_of(":")));
+                                auto y = std::stof(val.substr(val.find_first_of(":") + 1));
+                                Switcher::s_obItemSize = CCSize { x, y };
+                                ret = true;
+                            } catch (...) {}
+                        }
+                    } break;
+
+                    case hash("sep"): case hash("separation"):
+                    case hash("space"): case hash("spacing"): {
+                        if (stringContains(item_r, ":")) {
+                            try {
+                                auto x = std::stof(val.substr(0, val.find_first_of(":")));
+                                auto y = std::stof(val.substr(val.find_first_of(":") + 1));
+                                Switcher::s_obItemSize = CCSize { x, y };
+                                ret = true;
+                            } catch (...) {}
+                        }
+                    } break;
+                }
+            }
+        }
+    }
+    return ret;
+}
+
+decltype(Switcher::m_vConfig) Switcher::loadConfigFile() {
+    if (g_bLoadOnlyAtStartup && g_bHasBeenLoadedOnce)
+        return this->m_vConfig;
+    decltype(Switcher::m_vConfig) cfg;
+    if (std::filesystem::exists(g_sConfigFile)) {
+        g_bHasBeenLoadedOnce = true;
+        auto data = readFileString(g_sConfigFile);
+        if (this->m_sRawConfigFileData == data)
+            return this->m_vConfig;
+        this->m_sRawConfigFileData = data;
+        for (auto const& line_r : stringSplit(data, "\n")) {
+            auto line = line_r;
+            while (stringContains(line, " "))
+                line = stringReplace(line, " ", "");
+            while (stringContains(line, "\r"))
+                line = stringReplace(line, "\r", "");
+            line = stringToLower(line);
+
+            if (this->loadConfigVars(line))
+                continue;
+
+            cfg.push_back(std::vector<SwitchTo>());
+
+            for (auto const& item_r : stringSplit(line, "|")) {
+                switch (hash(item_r.c_str())) {
+                    case hash("mainmenu"): case hash("menulayer"):
+                        cfg[cfg.size() - 1].push_back(kSwitchToMainMenu);
+                        break;
+
+                    case hash("mylevels"):
+                        cfg[cfg.size() - 1].push_back(kSwitchToMyLevels);
+                        break;
+
+                    case hash("officiallevels"): case hash("mainlevels"):
+                    case hash("levelselectlayer"):
+                        cfg[cfg.size() - 1].push_back(kSwitchToOfficialLevels);
+                        break;
+
+                    case hash("iconkit"): case hash("garagelayer"):
+                    case hash("gjgaragelayer"): case hash("garage"):
+                        cfg[cfg.size() - 1].push_back(kSwitchToIconKit);
+                        break;
+
+                    case hash("onlinelevels"): case hash("creatorlayer"):
+                    case hash("online"):
+                        cfg[cfg.size() - 1].push_back(kSwitchToOnlineLevels);
+                        break;
+
+                    case hash("savedlevels"): case hash("saved"):
+                        cfg[cfg.size() - 1].push_back(kSwitchToSavedLevels);
+                        break;
+
+                    case hash("mappacks"): case hash("pain"):
+                        cfg[cfg.size() - 1].push_back(kSwitchToMapPacks);
+                        break;
+
+                    case hash("thechallenge"): case hash("challenge"):
+                    case hash("epic"):
+                        cfg[cfg.size() - 1].push_back(kSwitchToTheChallenge);
+                        break;
+
+                    case hash("searchlevels"): case hash("search"):
+                    case hash("levelsearch"): case hash("levelsearchlayer"):
+                        cfg[cfg.size() - 1].push_back(kSwitchToSearch);
+                        break;
+
+                    case hash("prevscene"): case hash("lastscene"):
+                    case hash("previousscene"):
+                        cfg[cfg.size() - 1].push_back(kSwitchToLast);
+                        break;
+
+                    case hash("prevlevel"): case hash("lastlevel"):
+                    case hash("previouslevel"):
+                        cfg[cfg.size() - 1].push_back(kSwitchToLastLevel);
+                        break;
+
+                    case hash("optionslayer"): case hash("settings"):
+                        cfg[cfg.size() - 1].push_back(kSwitchToSettings);
+                        break;
+
+                    case hash("profile"): case hash("profilepage"):
+                    case hash("user"): case hash("myaccount"):
+                        cfg[cfg.size() - 1].push_back(kSwitchToProfile);
+                        break;
+
+                    case hash("daily"): case hash("dailylevel"):
+                    case hash("dailylevelpage"):
+                        cfg[cfg.size() - 1].push_back(kSwitchToDaily);
+                        break;
+
+                    case hash("weekly"): case hash("weeklylevel"):
+                        cfg[cfg.size() - 1].push_back(kSwitchToWeekly);
+                        break;
+                }
+            }
+        }
+    }
+    return cfg;
+}
+
+void Switcher::loadConfig(decltype(Switcher::m_vConfig) cfg) {
+    for (auto const& s : this->m_vSwitches) {
+        s->removeFromParent();
+    }
+    this->m_vSwitches.clear();
+
+    this->m_vConfig = cfg;
+
+    auto c_ix = 0;
+    for (auto const& c : cfg) {
+        auto h_ix = 0;
+        for (auto const& h : c) {
+            auto posx = s_obItemSeparation.width *
+                (static_cast<float>(h_ix % c.size()) - c.size() / 2.f);
+            auto posy = s_obItemSeparation.height *
+                ((cfg.size()) / 2.f - static_cast<float>(c_ix % cfg.size()) - 1);
+            switch (h) {
+                case kSwitchToLastLevel: {
+                    auto lastLevel = g_pLastLevel ? 
+                        CCString::createWithFormat("Last Level (%s)", g_pLastLevel->m_sLevelName.c_str())->getCString() :
+                        "Last Level (None)";
+                    auto diffSpr = g_pLastLevel ?
+                        diffToSprName(g_pLastLevel) :
+                        "difficulty_00_btn_001.png";
+
+                    this->m_vSwitches.push_back(
+                        Switch::create(lastLevel, diffSpr, h, { posx, posy }, this)
+                    );
+                } break;
+
+                case kSwitchToLast: {
+                    auto str = CCString::createWithFormat(
+                        "Last Scene (%s)",
+                        SwitchToToString(g_eLastSwitch)
+                    );
+                    this->m_vSwitches.push_back(
+                        Switch::create(
+                            str->getCString(),
+                            SwitchToToSprName(g_eLastSwitch),
+                            h, { posx, posy }, this
+                        )
+                    );
+                } break;
+
+                case kSwitchToSettings:
+                case kSwitchToProfile: {
+                    this->m_vSwitches.push_back(
+                        Switch::create(
+                            nullptr, nullptr,
+                            h,
+                            { posx, posy },
+                            this, .8f
+                        )
+                    );
+                } break;
+
+                default: {
+                    this->m_vSwitches.push_back(
+                        Switch::create(
+                            nullptr, nullptr,
+                            h,
+                            { posx, posy },
+                            this
+                        )
+                    );
+                }
+            }
+            h_ix++;
+        }
+        c_ix++;
+    }
+}
+
 bool Switcher::init() {
     if (!CCLayerColor::initWithColor({ 0, 0, 0, 230 }))
         return false;
 
     this->setTag(SWITCHER_TAG);
+
+    m_vConfig = g_vConfig;
     
     auto winSize = CCDirector::sharedDirector()->getWinSize();
 
@@ -173,52 +522,18 @@ bool Switcher::init() {
     titleLabel->setScale(.4f);
     this->addChild(titleLabel);
 
-    auto str = CCString::createWithFormat("Last Scene (%s)", SwitchToToString(g_eLastSwitch));
+    auto fileCfg = this->loadConfigFile();
 
-    auto lastLevel = g_pLastLevel ? 
-        CCString::createWithFormat("Last Level (%s)", g_pLastLevel->m_sLevelName.c_str())->getCString() :
-        "Last Level (None)";
-    auto diffSpr = g_pLastLevel ?
-        diffToSprName(g_pLastLevel) :
-        "difficulty_00_btn_001.png";
+    if (fileCfg.size()) {
+        this->loadConfig(fileCfg);
+    } else {
+        this->loadConfig({
+            { kSwitchToMainMenu, kSwitchToMyLevels, kSwitchToOnlineLevels, kSwitchToIconKit, },
+            { kSwitchToSearch, kSwitchToSavedLevels, kSwitchToDaily, kSwitchToWeekly, },
+            { kSwitchToSettings, kSwitchToProfile, kSwitchToLastLevel, kSwitchToLast, },
+        });
+    }
 
-    this->m_vSwitches.push_back(
-        Switch::create(nullptr, nullptr, kSwitchToMainMenu, { -150.f, 100.f }, this)
-    );
-    this->m_vSwitches.push_back(
-        Switch::create(nullptr, nullptr, kSwitchToMyLevels, { -50.f, 100.f }, this)
-    );
-    this->m_vSwitches.push_back(
-        Switch::create(nullptr, nullptr, kSwitchToOnlineLevels, { 50.f, 100.f }, this)
-    );
-    this->m_vSwitches.push_back(
-        Switch::create(nullptr, nullptr, kSwitchToIconKit, { 150.f, 100.f }, this)
-    );
-    this->m_vSwitches.push_back(
-        Switch::create(nullptr, nullptr, kSwitchToSearch, { -150.f, 0.f }, this)
-    );
-    this->m_vSwitches.push_back(
-        Switch::create(nullptr, nullptr, kSwitchToSavedLevels, { -50.f, 0.f }, this)
-    );
-    this->m_vSwitches.push_back(
-        Switch::create(nullptr, nullptr, kSwitchToDaily, { 50.f, 0.f }, this)
-    );
-    this->m_vSwitches.push_back(
-        Switch::create(nullptr, nullptr, kSwitchToWeekly, { 150.f, 0.f }, this)
-    );
-    this->m_vSwitches.push_back(
-        Switch::create(nullptr, nullptr, kSwitchToSettings, { -150.f, -100.f }, this, .8f)
-    );
-    this->m_vSwitches.push_back(
-        Switch::create(nullptr, nullptr, kSwitchToProfile, { -50.f, -100.f }, this, .8f)
-    );
-    this->m_vSwitches.push_back(
-        Switch::create(lastLevel, diffSpr, kSwitchToLastLevel, { 50.f, -100.f }, this)
-    );
-    this->m_vSwitches.push_back(
-        Switch::create(str->getCString(), SwitchToToSprName(g_eLastSwitch), kSwitchToLast, { 150.f, -100.f }, this)
-    );
-    
     return true;
 }
 
@@ -433,7 +748,11 @@ void Switcher::go() {
                     }
                     break;
             }
-            CCDirector::sharedDirector()->replaceScene(scene);
+            CCDirector::sharedDirector()->replaceScene(
+                createTransitionFromArbitaryMagicNumber(
+                    scene, g_nArbitaryMagicTransitionNumber
+                )
+            );
         }
     }
     this->removeFromParent();
@@ -444,6 +763,10 @@ void Switcher::goTo() {
     if (scene->getChildByTag(SWITCHER_TAG)) {
         as<Switcher*>(scene->getChildByTag(SWITCHER_TAG))->go();
     }
+}
+
+Switcher::~Switcher() {
+    g_vConfig = m_vConfig;
 }
 
 Switcher* Switcher::create() {

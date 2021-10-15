@@ -31,7 +31,7 @@ void __fastcall CCKeyboardDispatcher_dispatchKeyboardMSG(
     enumKeyCodes key,
     bool down
 ) {
-    if (key == KEY_CapsLock) {
+    if (key == switchKey()) {
         if (down) {
             Switcher::show();
         } else {
@@ -46,6 +46,9 @@ void __fastcall CCKeyboardDispatcher_dispatchKeyboardMSG(
     return GDMAKE_ORIG_V(self, edx, key, down);
 }
 
-GDMAKE_MAIN { return ""; }
+GDMAKE_MAIN {
+    Switcher::loadConfigVars();
+    return "";
+}
 
 GDMAKE_UNLOAD {}

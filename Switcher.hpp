@@ -28,11 +28,14 @@ enum LastLevelType {
 };
 
 void setLastViewedLevel(GJGameLevel*, LastLevelType);
+enumKeyCodes switchKey();
 
 class Switch : public CCNode {
     protected:
         bool m_bHovered = false;
         SwitchTo m_eTo;
+        GLubyte m_nAnimTarget = 51;
+        GLubyte m_nAnim = 0;
 
         bool init(const char* text, const char* spr, SwitchTo, float size);
 
@@ -47,9 +50,16 @@ class Switch : public CCNode {
 };
 
 class Switcher : public CCLayerColor {
+    public:
+        static CCSize s_obItemSeparation;
+        static CCSize s_obItemSize;
+
     protected:
         std::vector<Switch*> m_vSwitches;
+        std::vector<std::vector<SwitchTo>> m_vConfig;
+        std::string m_sRawConfigFileData = "";
 
+        void loadConfig(decltype(m_vConfig));
         bool init();
         void visit() override;
         void go();
@@ -57,9 +67,13 @@ class Switcher : public CCLayerColor {
 
         bool handle(enumKeyCodes);
 
+        virtual ~Switcher();
+
     public:
+        decltype(m_vConfig) loadConfigFile();
         static bool handleKey(enumKeyCodes);
 
+        static bool loadConfigVars(std::string const& = "");
         static Switcher* create();
         static void show();
         static void goTo();

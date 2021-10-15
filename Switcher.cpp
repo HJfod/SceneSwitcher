@@ -1,4 +1,5 @@
 #include "Switcher.hpp"
+#include "switchMacro.hpp"
 
 // jaesus
 
@@ -36,12 +37,18 @@ constexpr const char* SwitchToToString(SwitchTo to) {
         case kSwitchToMapPacks: return "Map Packs";
         case kSwitchToSearch: return "Search";
         case kSwitchToTheChallenge: return "The Challenge";
+        case kSwitchToFeatured: return "Featured";
+        case kSwitchToHallOfFame: return "Hall of Fame";
+        case kSwitchToGauntlets: return "Gauntlets";
+        case kSwitchToLeaderboards: return "Leaderboards";
         case kSwitchToDaily: return "Daily";
         case kSwitchToWeekly: return "Weekly";
         case kSwitchToLast: return "Last";
         case kSwitchToLastLevel: return "Last Level";
         case kSwitchToSettings: return "Settings";
+        case kSwitchToMoreOptions: return "More Options";
         case kSwitchToProfile: return "Profile";
+        case kSwitchToQuests: return "Quests";
         default: return "Unknown";
     }
 }
@@ -57,10 +64,16 @@ constexpr const char* SwitchToToSprName(SwitchTo to) {
         case kSwitchToSavedLevels: return "GJ_savedBtn_001.png";
         case kSwitchToMapPacks: return "GJ_mapPacksBtn_001.png";
         case kSwitchToSettings: return "GJ_optionsBtn_001.png";
+        case kSwitchToMoreOptions: return "GJ_optionsBtn02_001.png";
+        case kSwitchToFeatured: return "GJ_featuredBtn_001.png";
+        case kSwitchToHallOfFame: return "GJ_fameBtn_001.png";
+        case kSwitchToGauntlets: return "GJ_gauntletsBtn_001.png";
+        case kSwitchToLeaderboards: return "GJ_highscoreBtn_001.png";
         case kSwitchToProfile: return "GJ_profileButton_001.png";
         case kSwitchToTheChallenge: return "difficulty_10_btn_001.png";
         case kSwitchToDaily: return "GJ_dailyBtn_001.png";
         case kSwitchToWeekly: return "GJ_weeklyBtn_001.png";
+        case kSwitchToQuests: return "GJ_challengeBtn_001.png";
         default: return nullptr;
     }
 }
@@ -246,6 +259,8 @@ constexpr bool Switcher::isPopupSwitchType(SwitchTo to) {
         case kSwitchToProfile:
         case kSwitchToDaily:
         case kSwitchToWeekly:
+        case kSwitchToQuests:
+        case kSwitchToMoreOptions:
             return true;
     }
     return false;
@@ -359,74 +374,90 @@ decltype(Switcher::m_vConfig) Switcher::loadConfigFile() {
 
             for (auto const& item_r : stringSplit(line, "|")) {
                 switch (hash(item_r.c_str())) {
-                    case hash("mainmenu"): case hash("menulayer"):
-                        cfg[cfg.size() - 1].push_back(kSwitchToMainMenu);
-                        break;
-
-                    case hash("mylevels"):
-                        cfg[cfg.size() - 1].push_back(kSwitchToMyLevels);
-                        break;
-
-                    case hash("officiallevels"): case hash("mainlevels"):
-                    case hash("levelselectlayer"):
-                        cfg[cfg.size() - 1].push_back(kSwitchToOfficialLevels);
-                        break;
-
-                    case hash("iconkit"): case hash("garagelayer"):
-                    case hash("gjgaragelayer"): case hash("garage"):
-                        cfg[cfg.size() - 1].push_back(kSwitchToIconKit);
-                        break;
-
-                    case hash("onlinelevels"): case hash("creatorlayer"):
-                    case hash("online"):
-                        cfg[cfg.size() - 1].push_back(kSwitchToOnlineLevels);
-                        break;
-
-                    case hash("savedlevels"): case hash("saved"):
-                        cfg[cfg.size() - 1].push_back(kSwitchToSavedLevels);
-                        break;
-
-                    case hash("mappacks"): case hash("pain"):
-                        cfg[cfg.size() - 1].push_back(kSwitchToMapPacks);
-                        break;
-
-                    case hash("thechallenge"): case hash("challenge"):
-                    case hash("epic"):
-                        cfg[cfg.size() - 1].push_back(kSwitchToTheChallenge);
-                        break;
-
-                    case hash("searchlevels"): case hash("search"):
-                    case hash("levelsearch"): case hash("levelsearchlayer"):
-                        cfg[cfg.size() - 1].push_back(kSwitchToSearch);
-                        break;
-
-                    case hash("prevscene"): case hash("lastscene"):
-                    case hash("previousscene"):
-                        cfg[cfg.size() - 1].push_back(kSwitchToLast);
-                        break;
-
-                    case hash("prevlevel"): case hash("lastlevel"):
-                    case hash("previouslevel"):
-                        cfg[cfg.size() - 1].push_back(kSwitchToLastLevel);
-                        break;
-
-                    case hash("optionslayer"): case hash("settings"):
-                        cfg[cfg.size() - 1].push_back(kSwitchToSettings);
-                        break;
-
-                    case hash("profile"): case hash("profilepage"):
-                    case hash("user"): case hash("myaccount"):
-                        cfg[cfg.size() - 1].push_back(kSwitchToProfile);
-                        break;
-
-                    case hash("daily"): case hash("dailylevel"):
-                    case hash("dailylevelpage"):
-                        cfg[cfg.size() - 1].push_back(kSwitchToDaily);
-                        break;
-
-                    case hash("weekly"): case hash("weeklylevel"):
-                        cfg[cfg.size() - 1].push_back(kSwitchToWeekly);
-                        break;
+                    RES(
+                        kSwitchToMainMenu,
+                        "mainmenu", "menulayer", "menu"
+                    );
+                    RES(
+                        kSwitchToMyLevels,
+                        "mylevels"
+                    );
+                    RES(
+                        kSwitchToFeatured,
+                        "featured"
+                    );
+                    RES(
+                        kSwitchToHallOfFame,
+                        "halloffame"
+                    );
+                    RES(
+                        kSwitchToGauntlets,
+                        "gauntlets"
+                    );
+                    RES(
+                        kSwitchToLeaderboards,
+                        "leaderboards", "scores"
+                    );
+                    RES(
+                        kSwitchToOfficialLevels,
+                        "officiallevels", "mainlevels", "levelselectlayer"
+                    );
+                    RES(
+                        kSwitchToIconKit,
+                        "iconkit", "garagelayer", "gjgaragelayer", "garage"
+                    );
+                    RES(
+                        kSwitchToOnlineLevels,
+                        "onlinelevels", "creatorlayer", "online"
+                    );
+                    RES(
+                        kSwitchToSavedLevels,
+                        "savedlevels", "saved"
+                    );
+                    RES(
+                        kSwitchToMapPacks,
+                        "mappacks", "pain"
+                    );
+                    RES(
+                        kSwitchToTheChallenge,
+                        "thechallenge", "challenge", "epic"
+                    );
+                    RES(
+                        kSwitchToSearch,
+                        "searchlevels", "search", "levelsearch", "levelsearchlayer"
+                    );
+                    RES(
+                        kSwitchToLast,
+                        "previousscene", "lastscene", "prevscene"
+                    );
+                    RES(
+                        kSwitchToLastLevel,
+                        "prevlevel", "lastlevel", "previouslevel"
+                    );
+                    RES(
+                        kSwitchToSettings,
+                        "optionslayer", "settings"
+                    );
+                    RES(
+                        kSwitchToMoreOptions,
+                        "options", "moreoptions", "optionspopup"
+                    );
+                    RES(
+                        kSwitchToProfile,
+                        "profile", "profilepage", "user", "myaccount"
+                    );
+                    RES(
+                        kSwitchToDaily,
+                        "daily", "dailylevel", "dailylevelpage"
+                    );
+                    RES(
+                        kSwitchToWeekly,
+                        "weekly", "weeklylevel", "weeklylevelpage"
+                    );
+                    RES(
+                        kSwitchToQuests,
+                        "quests", "challenges"
+                    );
                 }
             }
         }
@@ -668,6 +699,10 @@ void Switcher::go() {
                     OptionsLayer::addToCurrentScene(true);
                     break;
 
+                case kSwitchToMoreOptions:
+                    MoreOptionsLayer::create()->show();
+                    break;
+
                 case kSwitchToDaily: {
                     auto page = DailyLevelPage::create(false);
                     page->m_bNoElasticity = true;
@@ -675,6 +710,12 @@ void Switcher::go() {
                 } break;
 
                 case kSwitchToWeekly: {
+                    auto page = DailyLevelPage::create(true);
+                    page->m_bNoElasticity = true;
+                    page->show();
+                } break;
+
+                case kSwitchToQuests: {
                     auto page = DailyLevelPage::create(true);
                     page->m_bNoElasticity = true;
                     page->show();

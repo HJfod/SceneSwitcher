@@ -11,13 +11,19 @@ enum SwitchTo {
     kSwitchToSavedLevels,
     kSwitchToMapPacks,
     kSwitchToTheChallenge,
+    kSwitchToFeatured,
+    kSwitchToHallOfFame,
+    kSwitchToGauntlets,
+    kSwitchToLeaderboards,
     kSwitchToSearch,
     kSwitchToDaily,
     kSwitchToWeekly,
     kSwitchToLast,
     kSwitchToLastLevel,
     kSwitchToSettings,
+    kSwitchToMoreOptions,
     kSwitchToProfile,
+    kSwitchToQuests,
 };
 constexpr const char* SwitchToToString(SwitchTo to);
 
